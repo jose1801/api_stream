@@ -1,13 +1,11 @@
-import { createPool } from 'mysql2/promise';
-import { DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE, DB_PORT } from './config.js'; 
+import { config } from 'dotenv';
+config(); // Carga las variables desde el archivo .env
 
-export const conmysql = createPool({
-    host: DB_HOST,
-    user: DB_USER,
-    password: DB_PASSWORD,
-    database: DB_DATABASE,
-    port: DB_PORT,
-    ssl: {
-        rejectUnauthorized: false // Esto permite que Render se conecte a Aiven de forma segura
-    }
-});
+export const PORT = process.env.PORT || 3000;
+export const DB_HOST = process.env.DB_HOST;
+export const DB_USER = process.env.DB_USER;
+export const DB_PASSWORD = process.env.DB_PASSWORD;
+export const DB_PORT = process.env.DB_PORT;
+
+// 🌟 MAPEADO CLAVE: Tu db.js busca DB_DATABASE, así que le asignamos el DB_NAME de Render
+export const DB_DATABASE = process.env.DB_NAME;
