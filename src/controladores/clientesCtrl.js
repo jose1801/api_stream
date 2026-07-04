@@ -41,7 +41,7 @@ export const getclientesxid = async (req, res) => {
         });
     } catch (error) {
         console.error("❌ Error real de MySQL (getclientesxid):", error);
-        return res.status(500).json({ message: 'Error al obtener el cliente' });
+        return res.status(500).json({ message: 'Error al obtener the cliente' });
     }
 };
 
@@ -106,7 +106,7 @@ export const putClientes = async (req, res) => {
         });
     } catch (error) {
         console.error("❌ Error real de MySQL (putClientes):", error);
-        return res.status(500).json({ message: 'Error al actualizar the cliente' });
+        return res.status(500).json({ message: 'Error al actualizar el cliente' });
     }
 };
 
@@ -144,7 +144,6 @@ export const patchClientes = async (req, res) => {
 export const deleteClientes = async (req, res) => {
     try {
         const { id } = req.params;
-        // 🌟 Capturamos el operador que viaja en la URL (?operador=Pepe)
         const { operador } = req.query; 
 
         const [cliente] = await conmysql.query('SELECT nombre FROM clientes WHERE id = ?', [id]);
@@ -156,7 +155,6 @@ export const deleteClientes = async (req, res) => {
             return res.status(404).json({ message: 'Cliente no encontrado' });
         }
 
-        // 🌟 Se inserta con total precisión quién presionó el botón de eliminar
         await conmysql.query(
             'INSERT INTO auditoria (accion, tabla_afectada, usuario, detalles) VALUES (?, ?, ?, ?)',
             ['ELIMINAR_CLIENTE', 'clientes', operador, `Se eliminó permanentemente al cliente: ${nombreCliente} (ID #${id})`]
