@@ -18,9 +18,12 @@ export const crearProducto = async (req, res) => {
             return res.status(400).json({ message: 'El nombre y el precio de la app son requeridos.' });
         }
 
-        let imgFinal = 'uploads/placeholder.png'; 
+        // Imagen por defecto si el admin no sube ningún archivo
+        let imgFinal = 'https://via.placeholder.com/150/000000/FFFFFF/?text=Plataforma'; 
+        
+        // 🌟 Si hay archivo, Cloudinary nos devuelve la URL pública directa en req.file.path
         if (req.file) {
-            imgFinal = `uploads/${req.file.filename}`;
+            imgFinal = req.file.path;
         }
 
         const precioVentaNumerico = parseFloat(prod_precio);
@@ -61,8 +64,10 @@ export const actualizarProducto = async (req, res) => {
         if (existe.length === 0) return res.status(404).json({ message: 'Producto no encontrado' });
 
         let imgFinal = existe[0].logo_url; 
+        
+        // 🌟 Si editan el logo, guardamos el nuevo link de Cloudinary
         if (req.file) {
-            imgFinal = `uploads/${req.file.filename}`;
+            imgFinal = req.file.path;
         }
 
         const precioVentaNumerico = prod_precio ? parseFloat(prod_precio) : existe[0].precio_venta;
