@@ -2,17 +2,15 @@ import cron from 'node-cron';
 import nodemailer from 'nodemailer';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
 
-// 🛠️ EXTRAER EL ACCESO NATIVO PARA EVITAR EL UNDEFINED EN NODE v24
 const require = createRequire(import.meta.url);
-const firebaseModule = require('firebase-admin');
-const admin = firebaseModule.default || firebaseModule; 
+const serviceAccount = require('../../firebase-key.json');
 
-const serviceAccount = require('../../firebase-key.json'); 
-
-if (!admin.apps || !admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+if (!getApps().length) {
+    initializeApp({
+        credential: cert(serviceAccount)
     });
 }
 
@@ -95,7 +93,7 @@ async function verificarYEnviarCorreoVencimientos() {
                 };
 
                 try {
-                    const response = await admin.messaging().send(mensajePush);
+                    const response = await getMessaging().send(mensajePush);
                     console.log(`✅ Push nativo enviado con éxito para ${cli.nombre}. ID: ${response}`);
                 } catch (pushError) {
                     console.error(`❌ Error al enviar push para ${cli.nombre}:`, pushError);
