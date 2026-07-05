@@ -1,7 +1,6 @@
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
-import { initializeApp } from 'firebase-admin/app';
-import admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app'; // 👈 IMPORTACIÓN DIRECTA Y SEGURA DE CERT
 import { getMessaging } from 'firebase-admin/messaging';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
@@ -10,9 +9,9 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const serviceAccount = require('../../firebase-key.json'); 
 
-// 🌟 INICIALIZAR CONEXIÓN SEGURA CON FIREBASE (Solución definitiva a ES Modules en Node v24)
+// 🌟 INICIALIZAR CONEXIÓN SEGURA SIN USAR EL OBJETO 'ADMIN' GLOBAL
 const firebaseApp = initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    credential: cert(serviceAccount) // 👈 Usamos la función cert directamente aquí
 });
 
 console.log('⏰ Servidor de alertas (Gmail + Push Firebase) inicializado correctamente.');
@@ -87,7 +86,6 @@ async function verificarYEnviarCorreoVencimientos() {
         await transporador.sendMail(opcionesCorreo);
         console.log('✅ Correo de reporte de vencimientos enviado con éxito.');
 
-
         // --- 2. BLOQUE DE NOTIFICACIONES PUSH NATIVAS (Firebase Modular) ---
         console.log('📲 Procesando el envío de notificaciones push a dispositivos registrados...');
         
@@ -102,7 +100,6 @@ async function verificarYEnviarCorreoVencimientos() {
                 };
 
                 try {
-                    // ✅ Uso correcto y modular de getMessaging pasando la instancia de la app
                     const response = await getMessaging(firebaseApp).send(mensajePush);
                     console.log(`✅ Push nativo enviado con éxito para ${cli.nombre}. ID: ${response}`);
                 } catch (pushError) {
