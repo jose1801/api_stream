@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
-import admin from 'firebase-admin';
+import * as admin from 'firebase-admin';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
 
