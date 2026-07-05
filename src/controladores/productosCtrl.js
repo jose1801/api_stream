@@ -1,113 +1,118 @@
+import cron from 'node-cron';
+import nodemailer from 'nodemailer';
 import { conmysql as pool } from '../db.js';
+import { createRequire } from 'module';
 
-export const getProductos = async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT * FROM productos ORDER BY nombre ASC');
-        res.json(rows);
-    } catch (error) {
-        console.error("❌ Error en getProductos:", error);
-        return res.status(500).json({ message: 'Error al obtener productos' });
+// 🛠️ EXTRAER EL ACCESO NATIVO PARA EVITAR EL UNDEFINED EN NODE v24
+const require = createRequire(import.meta.url);
+const firebaseModule = require('firebase-admin');
+const admin = firebaseModule.default || firebaseModule; 
+
+const serviceAccount = require('../../firebase-key.json'); 
+
+if (!admin.apps || !admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+}
+
+console.log('⏰ Servidor de alertas (Gmail + Push Firebase) inicializado correctamente.');
+
+const MI_CORREO = 'js8754527@gmail.com'; 
+const MI_CLAVE_APLICACION = 'eityiknuydvfqhyx'; 
+
+const transporador = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: MI_CORREO,
+        pass: MI_CLAVE_APLICACION
     }
-};
+});
 
-export const crearProducto = async (req, res) => {
+async function verificarYEnviarCorreoVencimientos() {
+    console.log('🔄 Ejecutando revisión automática de vencimientos (Gmail + Push)...');
     try {
-        const { prod_nombre, prod_precio, operador_auditoria } = req.body;
-        
-        if (!prod_nombre || !prod_precio) {
-            return res.status(400).json({ message: 'El nombre y el precio de la app son requeridos.' });
-        }
-
-        let imgFinal = 'uploads/placeholder.png'; 
-        if (req.file) {
-            imgFinal = `uploads/${req.file.filename}`;
-        }
-
-        const precioVentaNumerico = parseFloat(prod_precio);
-        const stockNumerico = 5; 
-        const precioCostoNumerico = 0; 
-
         const query = `
-            INSERT INTO productos (nombre, logo_url, precio_costo, precio_venta, stock) 
-            VALUES (?, ?, ?, ?, ?)
+            SELECT c.nombre, c.telefono, c.fecha_vencimiento, c.token_dispositivo, p.nombre AS nombre_producto
+            FROM clientes c
+            LEFT JOIN productos p ON c.producto_id = p.id
+            WHERE c.fecha_vencimiento = CURDATE() + INTERVAL 1 DAY
         `;
 
-        const [result] = await pool.query(query, [
-            prod_nombre, 
-            imgFinal, 
-            precioCostoNumerico, 
-            precioVentaNumerico, 
-            stockNumerico
-        ]);
+        const [clientes] = await pool.query(query);
 
-        await pool.query(
-            'INSERT INTO auditoria (accion, tabla_afectada, usuario, detalles) VALUES (?, ?, ?, ?)',
-            ['CREAR_PRODUCTO', 'productos', operador_auditoria, `Se añadió la plataforma ${prod_nombre} por $${precioVentaNumerico}`]
-        );
-
-        return res.status(201).json({ id: result.insertId, url_imagen: imgFinal });
-    } catch (error) {
-        console.error("❌ Error en crearProducto:", error);
-        return res.status(500).json({ message: 'Error al crear producto' });
-    }
-};
-
-export const actualizarProducto = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { prod_nombre, prod_precio, operador_auditoria } = req.body;
-        
-        const [existe] = await pool.query('SELECT logo_url, nombre FROM productos WHERE id = ?', [id]);
-        if (existe.length === 0) return res.status(404).json({ message: 'Producto no encontrado' });
-
-        let imgFinal = existe[0].logo_url; 
-        if (req.file) {
-            imgFinal = `uploads/${req.file.filename}`;
+        if (clientes.length === 0) {
+            console.log('📅 No hay cuentas que expiren el día de mañana.');
+            return;
         }
 
-        const precioVentaNumerico = prod_precio ? parseFloat(prod_precio) : existe[0].precio_venta;
-
-        const query = `
-            UPDATE productos SET nombre = ?, precio_venta = ?, logo_url = ? WHERE id = ?
+        let cuerpoHTML = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                <h2 style="color: #e74c3c; text-align: center;">⚠️ Alerta de Vencimiento Stream Cipher</h2>
+                <p>Hola Administrador, las siguientes suscripciones expiran el día de mañana:</p>
+                <hr style="border: none; border-top: 1px solid #eee;" />
         `;
 
-        await pool.query(query, [
-            prod_nombre || existe[0].nombre, 
-            precioVentaNumerico, 
-            imgFinal, 
-            id
-        ]);
-        
-        await pool.query(
-            'INSERT INTO auditoria (accion, tabla_afectada, usuario, detalles) VALUES (?, ?, ?, ?)',
-            ['MODIFICAR_PRODUCTO', 'productos', operador_auditoria, `Se editó la plataforma: ${existe[0].nombre}`]
-        );
+        clientes.forEach((cli) => {
+            const fechaFormateada = cli.fecha_vencimiento instanceof Date 
+                ? cli.fecha_vencimiento.toISOString().substring(0, 10)
+                : cli.fecha_vencimiento;
 
-        res.json({ message: 'Producto actualizado con éxito', url_imagen: imgFinal });
+            cuerpoHTML += `
+                <div style="background-color: #f9f9f9; padding: 15px; margin-bottom: 10px; border-left: 4px solid #e74c3c; border-radius: 4px;">
+                    <p style="margin: 4px 0;"><strong>👤 Cliente:</strong> ${cli.nombre}</p>
+                    <p style="margin: 4px 0;"><strong>📱 Celular:</strong> ${cli.telefono || 'No registrado'}</p>
+                    <p style="margin: 4px 0;"><strong>📺 Plataforma:</strong> ${cli.nombre_producto || 'No asignada'}</p>
+                    <p style="margin: 4px 0;"><strong>📅 Fecha Expiración:</strong> ${fechaFormateada}</p>
+                </div>
+            `;
+        });
+
+        cuerpoHTML += `
+                <hr style="border: none; border-top: 1px solid #eee;" />
+                <p style="font-size: 12px; color: #7f8c8d; text-align: center;">Este es un reporte automático generado por el backend.</p>
+            </div>
+        `;
+
+        const opcionesCorreo = {
+            from: `"Stream Cipher Admin" <${MI_CORREO}>`,
+            to: MI_CORREO,
+            subject: '⚠️ Alerta de Vencimiento: Cuentas que expiran mañana',
+            html: cuerpoHTML
+        };
+
+        await transporador.sendMail(opcionesCorreo);
+        console.log('✅ Correo de reporte de vencimientos enviado con éxito.');
+
+        for (const cli of clientes) {
+            if (cli.token_dispositivo) {
+                const mensajePush = {
+                    notification: {
+                        title: '⚠️ Suscripción por vencer mañana',
+                        body: `${cli.nombre} - ${cli.nombre_producto || 'Plataforma'}`
+                    },
+                    token: cli.token_dispositivo
+                };
+
+                try {
+                    const response = await admin.messaging().send(mensajePush);
+                    console.log(`✅ Push nativo enviado con éxito para ${cli.nombre}. ID: ${response}`);
+                } catch (pushError) {
+                    console.error(`❌ Error al enviar push para ${cli.nombre}:`, pushError);
+                }
+            }
+        }
+
     } catch (error) {
-        console.error("❌ Error en actualizarProducto:", error);
-        return res.status(500).json({ message: 'Error al actualizar producto' });
+        console.error('❌ Error en el proceso general de alertas:', error);
     }
-};
+}
 
-export const eliminarProducto = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { operador } = req.query; 
+cron.schedule('0 8 * * *', () => {
+    verificarYEnviarCorreoVencimientos();
+}, {
+    scheduled: true,
+    timezone: "America/Guayaquil"
+});
 
-        const [prod] = await pool.query('SELECT nombre FROM productos WHERE id = ?', [id]);
-        const nombreProd = prod.length > 0 ? prod[0].nombre : 'Desconocido';
-
-        await pool.query('DELETE FROM productos WHERE id = ?', [id]);
-
-        await pool.query(
-            'INSERT INTO auditoria (accion, tabla_afectada, usuario, detalles) VALUES (?, ?, ?, ?)',
-            ['ELIMINAR_PRODUCTO', 'productos', operador, `Se eliminó la plataforma: ${nombreProd}`]
-        );
-
-        res.json({ message: 'Producto eliminado' });
-    } catch (error) {
-        console.error("❌ Error en eliminarProducto:", error);
-        return res.status(500).json({ message: 'Error al eliminar producto' });
-    }
-};
+verificarYEnviarCorreoVencimientos();
