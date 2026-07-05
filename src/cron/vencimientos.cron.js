@@ -3,7 +3,6 @@ import nodemailer from 'nodemailer';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
 
-// Solución definitiva para Node v24
 const require = createRequire(import.meta.url);
 const firebaseModule = require('firebase-admin');
 const admin = firebaseModule.default || firebaseModule; 
