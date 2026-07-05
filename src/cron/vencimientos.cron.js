@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
-import { initializeApp, credential } from 'firebase-admin/app';
+import { initializeApp } from 'firebase-admin/app';
+import admin from 'firebase-admin';
 import { getMessaging } from 'firebase-admin/messaging';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
@@ -9,9 +10,9 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const serviceAccount = require('../../firebase-key.json'); 
 
-// 🌟 INICIALIZAR CONEXIÓN SEGURA CON FIREBASE MODULAR (Solución al error 'cert')
+// 🌟 INICIALIZAR CONEXIÓN SEGURA CON FIREBASE (Solución definitiva a ES Modules en Node v24)
 const firebaseApp = initializeApp({
-    credential: credential.cert(serviceAccount)
+    credential: admin.credential.cert(serviceAccount)
 });
 
 console.log('⏰ Servidor de alertas (Gmail + Push Firebase) inicializado correctamente.');
@@ -101,7 +102,7 @@ async function verificarYEnviarCorreoVencimientos() {
                 };
 
                 try {
-                    // ✅ Uso de getMessaging con la app inicializada
+                    // ✅ Uso correcto y modular de getMessaging pasando la instancia de la app
                     const response = await getMessaging(firebaseApp).send(mensajePush);
                     console.log(`✅ Push nativo enviado con éxito para ${cli.nombre}. ID: ${response}`);
                 } catch (pushError) {
