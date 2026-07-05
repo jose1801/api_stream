@@ -3,13 +3,15 @@ import nodemailer from 'nodemailer';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
 
-// 🛠️ SOLUCIÓN COMPATIBLE CON NODE v24: Carga segura de Firebase Admin
+// 🛠️ EXTRACCIÓN REAL PARA NODE v24: Usamos .default para obtener el objeto admin nativo
 const require = createRequire(import.meta.url);
-const admin = require('firebase-admin'); 
+const firebaseAdminModule = require('firebase-admin'); 
+const admin = firebaseAdminModule.default || firebaseAdminModule; // 👈 ESTO ASEGURA QUE NO SEA UNDEFINED
+
 const serviceAccount = require('../../firebase-key.json'); 
 
 // 🌟 INICIALIZAR CONEXIÓN CON FIREBASE
-if (!admin.apps.length) {
+if (!admin.apps || !admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
     });
@@ -102,7 +104,6 @@ async function verificarYEnviarCorreoVencimientos() {
                 };
 
                 try {
-                    // Envío clásico usando el admin requerido de forma segura
                     const response = await admin.messaging().send(mensajePush);
                     console.log(`✅ Push nativo enviado con éxito para ${cli.nombre}. ID: ${response}`);
                 } catch (pushError) {
