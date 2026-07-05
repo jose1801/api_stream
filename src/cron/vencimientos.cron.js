@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
-import * as admin from 'firebase-admin';
+import { initializeApp, credential } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
 
@@ -8,9 +9,9 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const serviceAccount = require('../../firebase-key.json'); 
 
-// 🌟 INITIALIZAR CONEXIÓN SEGURA CON FIREBASE
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+// 🌟 INICIALIZAR CONEXIÓN SEGURA CON FIREBASE MODULAR (Solución al error 'cert')
+const firebaseApp = initializeApp({
+    credential: credential.cert(serviceAccount)
 });
 
 console.log('⏰ Servidor de alertas (Gmail + Push Firebase) inicializado correctamente.');
@@ -46,7 +47,7 @@ async function verificarYEnviarCorreoVencimientos() {
             return;
         }
 
-        // --- 1. BLOQUE DE CORREO ELECTRÓNICO (Tu lógica existente) ---
+        // --- 1. BLOQUE DE CORREO ELECTRÓNICO ---
         let cuerpoHTML = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                 <h2 style="color: #e74c3c; text-align: center;">⚠️ Alerta de Vencimiento Stream Cipher</h2>
@@ -86,11 +87,10 @@ async function verificarYEnviarCorreoVencimientos() {
         console.log('✅ Correo de reporte de vencimientos enviado con éxito.');
 
 
-        // --- 2. BLOQUE DE NOTIFICACIONES PUSH NATIVAS (Firebase) ---
+        // --- 2. BLOQUE DE NOTIFICACIONES PUSH NATIVAS (Firebase Modular) ---
         console.log('📲 Procesando el envío de notificaciones push a dispositivos registrados...');
         
         for (const cli of clientes) {
-            // Mandamos la notificación si el cliente (o tú como administrador) tiene el token guardado
             if (cli.token_dispositivo) {
                 const mensajePush = {
                     notification: {
@@ -101,7 +101,8 @@ async function verificarYEnviarCorreoVencimientos() {
                 };
 
                 try {
-                    const response = await admin.messaging().send(mensajePush);
+                    // ✅ Uso de getMessaging con la app inicializada
+                    const response = await getMessaging(firebaseApp).send(mensajePush);
                     console.log(`✅ Push nativo enviado con éxito para ${cli.nombre}. ID: ${response}`);
                 } catch (pushError) {
                     console.error(`❌ Error al enviar push para ${cli.nombre}:`, pushError);
@@ -124,5 +125,5 @@ cron.schedule('0 8 * * *', () => {
     timezone: "America/Guayaquil"
 });
 
-// 🧪 LÍNEA PARA PROBAR DE INMEDIATO:
+// 🧪 LÍNEA PARA PROBAR DE INMEDIATO EN CADA ARRANQUE:
 verificarYEnviarCorreoVencimientos();
