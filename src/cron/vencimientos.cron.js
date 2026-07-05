@@ -1,18 +1,19 @@
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
-import { initializeApp, cert } from 'firebase-admin/app'; // 👈 IMPORTACIÓN DIRECTA Y SEGURA DE CERT
-import { getMessaging } from 'firebase-admin/messaging';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
 
-// Permite cargar el archivo JSON usando ES Modules de forma limpia
+// 🛠️ SOLUCIÓN COMPATIBLE CON NODE v24: Carga segura de Firebase Admin
 const require = createRequire(import.meta.url);
+const admin = require('firebase-admin'); 
 const serviceAccount = require('../../firebase-key.json'); 
 
-// 🌟 INICIALIZAR CONEXIÓN SEGURA SIN USAR EL OBJETO 'ADMIN' GLOBAL
-const firebaseApp = initializeApp({
-    credential: cert(serviceAccount) // 👈 Usamos la función cert directamente aquí
-});
+// 🌟 INICIALIZAR CONEXIÓN CON FIREBASE
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+}
 
 console.log('⏰ Servidor de alertas (Gmail + Push Firebase) inicializado correctamente.');
 
@@ -86,7 +87,8 @@ async function verificarYEnviarCorreoVencimientos() {
         await transporador.sendMail(opcionesCorreo);
         console.log('✅ Correo de reporte de vencimientos enviado con éxito.');
 
-        // --- 2. BLOQUE DE NOTIFICACIONES PUSH NATIVAS (Firebase Modular) ---
+
+        // --- 2. BLOQUE DE NOTIFICACIONES PUSH NATIVAS (Firebase) ---
         console.log('📲 Procesando el envío de notificaciones push a dispositivos registrados...');
         
         for (const cli of clientes) {
@@ -100,7 +102,8 @@ async function verificarYEnviarCorreoVencimientos() {
                 };
 
                 try {
-                    const response = await getMessaging(firebaseApp).send(mensajePush);
+                    // Envío clásico usando el admin requerido de forma segura
+                    const response = await admin.messaging().send(mensajePush);
                     console.log(`✅ Push nativo enviado con éxito para ${cli.nombre}. ID: ${response}`);
                 } catch (pushError) {
                     console.error(`❌ Error al enviar push para ${cli.nombre}:`, pushError);
