@@ -9,8 +9,8 @@ const router = Router();
 // ☁️ CONFIGURACIÓN DE CLOUDINARY
 cloudinary.config({
     cloud_name: 'rrznyvxu', 
-    api_key: '329177122517374',
-    api_secret: 'b1helQ6DvlsIJtVM6wJo8UtJDsM'
+    api_key: '291649836773752',
+    api_secret: 'A6mOHvn7flnRSeFmuE62H2Shhbw'
 });
 
 // 🚨 MODO A PRUEBA DE FALLOS: Sin restricciones de carpeta ni formato
