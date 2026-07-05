@@ -1,26 +1,23 @@
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
+import admin from 'firebase-admin';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
 
-// 🛠️ CONFIGURACIÓN TOTALMENTE INTERNA (Evita por completo usar admin.credential)
 const require = createRequire(import.meta.url);
-const adminApp = require('firebase-admin/app'); 
-const adminMessaging = require('firebase-admin/messaging');
 const serviceAccount = require('../../firebase-key.json'); 
 
-// Inicialización nativa directa usando el método interno exportado de la app
-const firebaseApp = adminApp.initializeApp({
-    credential: adminApp.credential.cert(serviceAccount)
-});
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+}
 
 console.log('⏰ Servidor de alertas (Gmail + Push Firebase) inicializado correctamente.');
 
-// 🌟 CONFIGURA AQUÍ TU GMAIL Y LAS 16 LETRAS QUE TE DIO GOOGLE
 const MI_CORREO = 'js8754527@gmail.com'; 
 const MI_CLAVE_APLICACION = 'eityiknuydvfqhyx'; 
 
-// Configuración del motor de envío de correos
 const transporador = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -32,7 +29,6 @@ const transporador = nodemailer.createTransport({
 async function verificarYEnviarCorreoVencimientos() {
     console.log('🔄 Ejecutando revisión automática de vencimientos (Gmail + Push)...');
     try {
-        // Consulta SQL limpia para buscar los vencimientos de mañana, incluyendo el token del dispositivo
         const query = `
             SELECT c.nombre, c.telefono, c.fecha_vencimiento, c.token_dispositivo, p.nombre AS nombre_producto
             FROM clientes c
@@ -47,7 +43,6 @@ async function verificarYEnviarCorreoVencimientos() {
             return;
         }
 
-        // --- 1. BLOQUE DE CORREO ELECTRÓNICO ---
         let cuerpoHTML = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                 <h2 style="color: #e74c3c; text-align: center;">⚠️ Alerta de Vencimiento Stream Cipher</h2>
@@ -72,7 +67,7 @@ async function verificarYEnviarCorreoVencimientos() {
 
         cuerpoHTML += `
                 <hr style="border: none; border-top: 1px solid #eee;" />
-                <p style="font-size: 12px; color: #7f8c8d; text-align: center;">Este es un reporte automático generado por el backend de tu aplicación.</p>
+                <p style="font-size: 12px; color: #7f8c8d; text-align: center;">Este es un reporte automático generado por el backend.</p>
             </div>
         `;
 
@@ -86,12 +81,6 @@ async function verificarYEnviarCorreoVencimientos() {
         await transporador.sendMail(opcionesCorreo);
         console.log('✅ Correo de reporte de vencimientos enviado con éxito.');
 
-        // --- 2. BLOQUE DE NOTIFICACIONES PUSH NATIVAS (Firebase) ---
-        console.log('📲 Procesando el envío de notificaciones push a dispositivos registrados...');
-        
-        // Obtenemos el servicio de mensajería asociado a la app creada arriba
-        const messaging = adminMessaging.getMessaging(firebaseApp);
-
         for (const cli of clientes) {
             if (cli.token_dispositivo) {
                 const mensajePush = {
@@ -103,13 +92,11 @@ async function verificarYEnviarCorreoVencimientos() {
                 };
 
                 try {
-                    const response = await messaging.send(mensajePush);
+                    const response = await admin.messaging().send(mensajePush);
                     console.log(`✅ Push nativo enviado con éxito para ${cli.nombre}. ID: ${response}`);
                 } catch (pushError) {
                     console.error(`❌ Error al enviar push para ${cli.nombre}:`, pushError);
                 }
-            } else {
-                console.warn(`⚠️ No se envió push para ${cli.nombre} porque no cuenta con un token_dispositivo.`);
             }
         }
 
@@ -118,7 +105,6 @@ async function verificarYEnviarCorreoVencimientos() {
     }
 }
 
-// Programado para ejecutarse todos los días a las 08:00 AM (Hora de Ecuador)
 cron.schedule('0 8 * * *', () => {
     verificarYEnviarCorreoVencimientos();
 }, {
@@ -126,5 +112,4 @@ cron.schedule('0 8 * * *', () => {
     timezone: "America/Guayaquil"
 });
 
-// 🧪 LÍNEA PARA PROBAR DE INMEDIATO EN CADA ARRANQUE:
 verificarYEnviarCorreoVencimientos();

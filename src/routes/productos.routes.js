@@ -1,35 +1,40 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { getProductos, crearProducto, actualizarProducto, eliminarProducto } from '../controladores/productosCtrl.js';
+import path from 'path';
+import fs from 'fs';
 
 const router = Router();
 
-// 🛡️ NUEVA CONFIGURACIÓN: Almacenamiento en memoria RAM (Impide que Render cree archivos físicos efímeros)
-const storage = multer.memoryStorage();
+// Definimos la ruta en la carpeta /tmp de Render para evitar que se borren con los deploys
+const uploadDir = '/tmp/uploads';
+if (!fs.existsSync(uploadDir)){
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
 
-// Filtro para aceptar imágenes y PDFs
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
 const fileFilter = (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
     if (allowedTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Formato de archivo no permitido. Solo imágenes y PDFs.'), false);
+        cb(new Error('Formato de archivo no permitido.'), false);
     }
 };
 
-const upload = multer({ 
-    storage, 
-    fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // Límite opcional de 5MB por imagen para cuidar tu base de datos
-});
+const upload = multer({ storage, fileFilter });
 
-// Endpoints: Interceptamos el POST y PUT con upload.single('prod_imagen')
-router.get('/productos', getProductos);
-
-// 'prod_imagen' es el nombre del parámetro que usas desde Ionic
-router.post('/productos', upload.single('prod_imagen'), crearProducto);
-router.put('/productos/:id', upload.single('prod_imagen'), actualizarProducto);
-
-router.delete('/productos/:id', eliminarProducto);
+router.get('/productos', (req, res, next) => next()); // El controlador maneja la lógica
+router.post('/productos', upload.single('prod_imagen'), (req, res, next) => next());
+router.put('/productos/:id', upload.single('prod_imagen'), (req, res, next) => next());
+router.delete('/productos/:id', (req, res, next) => next());
 
 export default router;
