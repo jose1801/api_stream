@@ -11,19 +11,22 @@ export const getProductos = async (req, res) => {
     }
 };
 
-// 2. CREAR PLATAFORMA / PRODUCTO (Auditoría 100% Dinámica)
+// 2. CREAR PLATAFORMA / PRODUCTO (Auditoría 100% Dinámica con Almacenamiento en Base64)
 export const crearProducto = async (req, res) => {
     try {
-        // 🌟 Capturamos 'operador_auditoria' enviado desde el formulario de Ionic
         const { prod_nombre, prod_precio, operador_auditoria } = req.body;
         
         if (!prod_nombre || !prod_precio) {
             return res.status(400).json({ message: 'El nombre y el precio de la app son requeridos.' });
         }
 
-        let imgFinal = 'uploads/placeholder.png'; 
+        // Definimos imagen por defecto
+        let imgFinal = 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=150'; 
+        
+        // 🛡️ SI EL CELULAR ENVÍA UNA FOTO: La transformamos a Base64 para guardarla directamente en Aiven
         if (req.file) {
-            imgFinal = `uploads/${req.file.filename}`;
+            const base64String = req.file.buffer.toString('base64');
+            imgFinal = `data:${req.file.mimetype};base64,${base64String}`;
         }
 
         const precioVentaNumerico = parseFloat(prod_precio);
@@ -47,7 +50,6 @@ export const crearProducto = async (req, res) => {
             stockNumerico
         ]);
 
-        // 🌟 AUDITORÍA DINÁMICA: Registra estrictamente el nombre que viene del login
         await pool.query(
             'INSERT INTO auditoria (accion, tabla_afectada, usuario, detalles) VALUES (?, ?, ?, ?)',
             ['CREAR_PRODUCTO', 'productos', operador_auditoria, `Se añadió la plataforma ${prod_nombre} al catálogo por $${precioVentaNumerico}`]
@@ -65,19 +67,21 @@ export const crearProducto = async (req, res) => {
     }
 };
 
-// 3. ACTUALIZAR PRODUCTO (Auditoría 100% Dinámica)
+// 3. ACTUALIZAR PRODUCTO (Auditoría 100% Dinámica con Almacenamiento en Base64)
 export const actualizarProducto = async (req, res) => {
     try {
         const { id } = req.params;
-        // 🌟 Capturamos 'operador_auditoria' enviado desde el formulario de Ionic
         const { prod_nombre, prod_precio, operador_auditoria } = req.body;
         
         const [existe] = await pool.query('SELECT logo_url, nombre FROM productos WHERE id = ?', [id]);
         if (existe.length === 0) return res.status(404).json({ message: 'Producto no encontrado' });
 
         let imgFinal = existe[0].logo_url; 
+        
+        // 🛡️ SI SE CARGA UNA NUEVA FOTO EN EDICIÓN: La transformamos a Base64
         if (req.file) {
-            imgFinal = `uploads/${req.file.filename}`;
+            const base64String = req.file.buffer.toString('base64');
+            imgFinal = `data:${req.file.mimetype};base64,${base64String}`;
         }
 
         const precioVentaNumerico = prod_precio ? parseFloat(prod_precio) : existe[0].precio_venta;
@@ -95,7 +99,6 @@ export const actualizarProducto = async (req, res) => {
             id
         ]);
         
-        // 🌟 AUDITORÍA DINÁMICA: Registra estrictamente el usuario activo que modificó
         await pool.query(
             'INSERT INTO auditoria (accion, tabla_afectada, usuario, detalles) VALUES (?, ?, ?, ?)',
             ['MODIFICAR_PRODUCTO', 'productos', operador_auditoria, `Se editó la plataforma: ${existe[0].nombre} (ID #${id})`]
@@ -108,11 +111,10 @@ export const actualizarProducto = async (req, res) => {
     }
 };
 
-// 4. ELIMINAR PRODUCTO (Auditoría 100% Dinámica usando Query string)
+// 4. ELIMINAR PRODUCTO
 export const eliminarProducto = async (req, res) => {
     try {
         const { id } = req.params;
-        // 🌟 Atrapamos el operador que viaja en la URL (?operador=Pepe) desde Ionic
         const { operador } = req.query; 
 
         const [prod] = await pool.query('SELECT nombre FROM productos WHERE id = ?', [id]);
@@ -120,7 +122,6 @@ export const eliminarProducto = async (req, res) => {
 
         await pool.query('DELETE FROM productos WHERE id = ?', [id]);
 
-        // 🌟 AUDITORÍA DINÁMICA: Inserción directa y limpia del nombre correspondiente
         await pool.query(
             'INSERT INTO auditoria (accion, tabla_afectada, usuario, detalles) VALUES (?, ?, ?, ?)',
             ['ELIMINAR_PRODUCTO', 'productos', operador, `Se eliminó físicamente la plataforma: ${nombreProd} (ID #${id})`]
