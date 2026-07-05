@@ -45,10 +45,24 @@ app.use('/api', auditoriaRoutes);
 // 2️⃣ RUTAS PROTEGIDAS 
 // (Si en el futuro deseas proteger algo con verifyToken, lo pones aquí abajo)
 
+// ... Todo tu código anterior de app.js se queda exactamente igual ...
+
 app.use((req,res,next)=>{
     res.status(404).json({
         message:"endpoint no encontrado"
     })
 })
+
+// 🛡️ COPIA Y PEGA ESTO AQUÍ (Manejador Global de Errores definitivo):
+app.use((err, req, res, next) => {
+    console.error("💥 CLOUDINARY/MULTER ERROR DETECTADO:");
+    console.error("📝 Mensaje del fallo:", err.message);
+    console.error("🗂️ Detalle técnico (Stack):", err.stack);
+    
+    return res.status(500).json({
+        message: "Error interno en el servidor de imágenes",
+        error: err.message
+    });
+});
 
 export default app;
