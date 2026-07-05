@@ -6,7 +6,7 @@ export const getProductos = async (req, res) => {
         res.json(rows);
     } catch (error) {
         console.error("❌ Error en getProductos:", error);
-        return res.status(500).json({ message: 'Error al obtener productos', error: error.message });
+        return res.status(500).json({ message: 'Error al obtener productos' });
     }
 };
 
@@ -85,6 +85,7 @@ export const actualizarProducto = async (req, res) => {
 
         res.json({ message: 'Producto actualizado con éxito', url_imagen: imgFinal });
     } catch (error) {
+        console.error("❌ Error en actualizarProducto:", error);
         return res.status(500).json({ message: 'Error al actualizar producto' });
     }
 };
@@ -106,6 +107,7 @@ export const eliminarProducto = async (req, res) => {
 
         res.json({ message: 'Producto eliminado' });
     } catch (error) {
+        console.error("❌ Error en eliminarProducto:", error);
         return res.status(500).json({ message: 'Error al eliminar producto' });
     }
 };

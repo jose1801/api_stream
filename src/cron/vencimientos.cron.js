@@ -1,13 +1,16 @@
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
-import admin from 'firebase-admin';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
 
+// 🛠️ SOLUCIÓN PARA NODE v24: Evita que el objeto llegue como undefined
 const require = createRequire(import.meta.url);
+const firebaseModule = require('firebase-admin');
+const admin = firebaseModule.default || firebaseModule; 
+
 const serviceAccount = require('../../firebase-key.json'); 
 
-if (!admin.apps.length) {
+if (!admin.apps || !admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
     });
