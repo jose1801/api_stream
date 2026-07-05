@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
 
+// 🛠️ EXTRAER EL ACCESO NATIVO PARA EVITAR EL UNDEFINED EN NODE v24
 const require = createRequire(import.meta.url);
 const firebaseModule = require('firebase-admin');
 const admin = firebaseModule.default || firebaseModule; 
