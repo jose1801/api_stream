@@ -3,19 +3,16 @@ import nodemailer from 'nodemailer';
 import { conmysql as pool } from '../db.js';
 import { createRequire } from 'module';
 
-// 🛠️ EXTRACCIÓN REAL PARA NODE v24: Usamos .default para obtener el objeto admin nativo
+// 🛠️ CONFIGURACIÓN TOTALMENTE INTERNA (Evita por completo usar admin.credential)
 const require = createRequire(import.meta.url);
-const firebaseAdminModule = require('firebase-admin'); 
-const admin = firebaseAdminModule.default || firebaseAdminModule; // 👈 ESTO ASEGURA QUE NO SEA UNDEFINED
-
+const adminApp = require('firebase-admin/app'); 
+const adminMessaging = require('firebase-admin/messaging');
 const serviceAccount = require('../../firebase-key.json'); 
 
-// 🌟 INICIALIZAR CONEXIÓN CON FIREBASE
-if (!admin.apps || !admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
-}
+// Inicialización nativa directa usando el método interno exportado de la app
+const firebaseApp = adminApp.initializeApp({
+    credential: adminApp.credential.cert(serviceAccount)
+});
 
 console.log('⏰ Servidor de alertas (Gmail + Push Firebase) inicializado correctamente.');
 
@@ -89,10 +86,12 @@ async function verificarYEnviarCorreoVencimientos() {
         await transporador.sendMail(opcionesCorreo);
         console.log('✅ Correo de reporte de vencimientos enviado con éxito.');
 
-
         // --- 2. BLOQUE DE NOTIFICACIONES PUSH NATIVAS (Firebase) ---
         console.log('📲 Procesando el envío de notificaciones push a dispositivos registrados...');
         
+        // Obtenemos el servicio de mensajería asociado a la app creada arriba
+        const messaging = adminMessaging.getMessaging(firebaseApp);
+
         for (const cli of clientes) {
             if (cli.token_dispositivo) {
                 const mensajePush = {
@@ -104,7 +103,7 @@ async function verificarYEnviarCorreoVencimientos() {
                 };
 
                 try {
-                    const response = await admin.messaging().send(mensajePush);
+                    const response = await messaging.send(mensajePush);
                     console.log(`✅ Push nativo enviado con éxito para ${cli.nombre}. ID: ${response}`);
                 } catch (pushError) {
                     console.error(`❌ Error al enviar push para ${cli.nombre}:`, pushError);
