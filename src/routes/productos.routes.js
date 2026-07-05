@@ -6,7 +6,7 @@ import { getProductos, crearProducto, actualizarProducto, eliminarProducto } fro
 
 const router = Router();
 
-// Directorio en la carpeta temporal de Render para evitar pérdida de imágenes
+// Carpeta /tmp de Render para almacenamiento estable
 const uploadDir = '/tmp/uploads';
 if (!fs.existsSync(uploadDir)){
     fs.mkdirSync(uploadDir, { recursive: true });
@@ -37,7 +37,6 @@ const upload = multer({
     limits: { fileSize: 5 * 1024 * 1024 }
 });
 
-// Vinculación limpia de endpoints con sus controladores correspondientes
 router.get('/productos', getProductos);
 router.post('/productos', upload.single('prod_imagen'), crearProducto);
 router.put('/productos/:id', upload.single('prod_imagen'), actualizarProducto);
