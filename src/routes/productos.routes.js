@@ -8,18 +8,15 @@ const router = Router();
 
 // ☁️ CONFIGURACIÓN DE CLOUDINARY
 cloudinary.config({
-    cloud_name: 'rrznyvxu', // <--- Cópialo del dashboard principal de Cloudinary
-    api_key: '291649836773752',
-    api_secret: 'A6mOHvn7flnRSeFmuE62H2Shhbw'
+    cloud_name: 'rrznyvxu', 
+    api_key: '329177122517374',
+    api_secret: 'b1helQ6DvlsIJtVM6wJo8UtJDsM'
 });
 
-// Vinculamos Multer directamente con Cloudinary
+// 🚨 MODO A PRUEBA DE FALLOS: Sin restricciones de carpeta ni formato
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
-    params: {
-        folder: 'plataformas_admin', // Carpeta que se creará en tu nube
-        allowed_formats: ['jpg', 'png', 'jpeg', 'webp']
-    },
+    params: {} 
 });
 
 const upload = multer({ 
