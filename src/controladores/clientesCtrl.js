@@ -46,7 +46,7 @@ export const getclientesxid = async (req, res) => {
 };
 
 // 3. REGISTRAR / INSERTAR UN NUEVO CLIENTE (Auditoría 100% Dinámica)
-// 3. REGISTRAR / INSERTAR UN NUEVO CLIENTE (Corregido para permitir duplicados)
+// 3. REGISTRAR / INSERTAR UN NUEVO CLIENTE (Corregido)
 export const postInsertarClientes = async (req, res) => {
     try {
         const { nombre, telefono, producto_id, descripcion, fecha_vencimiento, operador_auditoria } = req.body;
@@ -55,8 +55,7 @@ export const postInsertarClientes = async (req, res) => {
             return res.status(400).json({ message: 'El nombre y el teléfono son campos requeridos.' });
         }
 
-        // Se inserta normalmente. Como quitamos la validación abajo, 
-        // MySQL simplemente creará una nueva fila si los datos se repiten.
+        // Ya no hay validación previa de duplicados, se inserta directamente
         const [result] = await conmysql.query(
             'INSERT INTO clientes (nombre, telefono, producto_id, descripcion, fecha_vencimiento) VALUES (?, ?, ?, ?, ?)',
             [nombre, telefono, producto_id || null, descripcion || null, fecha_vencimiento || null]
@@ -69,11 +68,8 @@ export const postInsertarClientes = async (req, res) => {
 
         res.status(201).json({ id: result.insertId, message: 'Cliente insertado exitosamente' });
     } catch (error) {
-        console.error("❌ Error real de MySQL (postInsertarClientes):", error);
-        
-        // CORRECCIÓN: Eliminamos el bloque 'if (error.code === 'ER_DUP_ENTRY')'
-        // para que ya no lance el error 400 cuando el teléfono se repita.
-        
+        console.error("❌ Error en postInsertarClientes:", error);
+        // Si ocurre cualquier error, devolvemos 500, pero nunca más un 400 por duplicado
         return res.status(500).json({ message: 'Error al insertar el cliente' });
     }
 };
